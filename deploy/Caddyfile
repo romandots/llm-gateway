@@ -1,0 +1,69 @@
+# TLS termination and the public surface of the gateway.
+#
+# Everything the contract promises on the wire is here: the health endpoints
+# without auth, and the x-gw-* response headers mapped from LiteLLM's own.
+
+{
+	email {$ACME_EMAIL}
+	servers {
+		# Streaming responses must not be buffered by the reverse proxy.
+		timeouts {
+			read_body 30s
+		}
+	}
+}
+
+{$GATEWAY_DOMAIN} {
+	# Compress ordinary JSON answers, but never text/event-stream: buffering a
+	# streaming response would defeat the point of streaming it.
+	encode zstd gzip {
+		match {
+			header Content-Type application/json*
+		}
+	}
+
+	log {
+		output stdout
+		format json
+		# Request bodies are never logged — only method, path, status, size.
+	}
+
+	# Liveness and readiness are public on purpose: an external uptime monitor
+	# must be able to reach them without holding a key.
+	handle /health/liveness {
+		reverse_proxy litellm:4000
+	}
+	handle /health/readiness {
+		reverse_proxy litellm:4000
+	}
+
+	handle {
+		reverse_proxy litellm:4000 {
+			# The gateway's own request id, echoed to the caller so a report of
+			# "request X failed" can be correlated with the proxy's logs.
+			header_up X-Gw-Request-Id {http.request.uuid}
+			header_down X-Gw-Request-Id {http.request.uuid}
+
+			# Contract headers, renamed from what LiteLLM emits.
+			header_down >X-Litellm-Model-Id X-Gw-Model
+			header_down >X-Litellm-Model-Group X-Gw-Alias
+			header_down >X-Litellm-Attempted-Fallbacks X-Gw-Fallback
+			header_down X-Gw-Fallback ^0$ false
+			header_down X-Gw-Fallback ^[1-9][0-9]*$ true
+
+			# Internal accounting stays internal.
+			header_down -X-Litellm-Key-Spend
+			header_down -X-Litellm-Key-Max-Budget
+			header_down -X-Litellm-Response-Cost
+
+			# Long enough for the 30 s contract plus a little slack; streaming
+			# responses are flushed immediately.
+			transport http {
+				response_header_timeout 35s
+				read_timeout 60s
+				compression off
+			}
+			flush_interval -1
+		}
+	}
+}

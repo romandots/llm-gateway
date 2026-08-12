@@ -1,0 +1,12 @@
+# Secrets. Vendor keys, the Postgres password and the LiteLLM master key live
+# here on the VPS and must never reach git.
+.env
+deploy/.env
+
+# Build artefacts
+/bin/
+*.test
+coverage.out
+
+# Operations
+/backups/

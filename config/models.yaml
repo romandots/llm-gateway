@@ -1,0 +1,153 @@
+# Alias taxonomy — the public contract of the gateway.
+#
+# The list is closed: aliases are added, never renamed and never quietly given
+# a different meaning. Consumers ask for a capability class; what serves it is
+# decided here and may change at any time (that is a PATCH release).
+#
+# The order of `targets` is the routing priority. The first target is primary,
+# the rest are fallbacks tried in order on 429, 5xx and connection timeouts —
+# never on 400.
+#
+# `capabilities` is a declaration, not auto-detection. If it disagrees with
+# reality that is a bug in this file, and `make smoke` is what catches it.
+
+version: 1
+
+aliases:
+  cheap-fast:
+    description: "Классификация, извлечение, роутинг, простые преобразования. Дёшево и быстро."
+    mode: chat
+    capabilities:
+      streaming: true
+      tools: true
+      json_schema: emulated
+      vision: false
+      embeddings: false
+    context_window: 200000
+    max_output_tokens: 64000
+    targets:
+      - provider: anthropic
+        model: claude-haiku-4-5
+      - provider: openai
+        model: gpt-5-mini
+
+  balanced:
+    description: "Рабочая лошадка, дефолт для большинства задач. ~80% трафика."
+    mode: chat
+    capabilities:
+      streaming: true
+      tools: true
+      json_schema: native
+      vision: false
+      embeddings: false
+    context_window: 1000000
+    max_output_tokens: 128000
+    targets:
+      - provider: anthropic
+        model: claude-sonnet-5
+      - provider: openai
+        model: gpt-5
+
+  smart:
+    description: "Сложные задачи, длинные инструкции. Качество важнее цены."
+    mode: chat
+    capabilities:
+      streaming: true
+      tools: true
+      json_schema: native
+      vision: false
+      embeddings: false
+    context_window: 200000
+    max_output_tokens: 64000
+    targets:
+      - provider: anthropic
+        model: claude-opus-5
+      - provider: openai
+        model: gpt-5
+
+  # No fallback on purpose: extended thinking behaves differently enough
+  # between vendors that a silent substitution would change the character of
+  # the answer. An honest error beats a quiet degradation.
+  reasoning:
+    description: "Многошаговые рассуждения. Без fallback: подмена модели изменила бы характер ответа."
+    mode: chat
+    capabilities:
+      streaming: true
+      tools: true
+      json_schema: native
+      vision: false
+      embeddings: false
+    context_window: 200000
+    max_output_tokens: 64000
+    targets:
+      - provider: anthropic
+        model: claude-opus-5
+        params:
+          thinking:
+            type: enabled
+            budget_tokens: 8192
+
+  long-context:
+    description: "Большой вход — сотни тысяч токенов в одном запросе."
+    mode: chat
+    capabilities:
+      streaming: true
+      tools: true
+      json_schema: native
+      vision: false
+      embeddings: false
+    context_window: 1000000
+    max_output_tokens: 64000
+    targets:
+      - provider: anthropic
+        model: claude-sonnet-5
+      - provider: openai
+        model: gpt-4.1
+
+  vision:
+    description: "Картинки на вход. Единственный алиас с гарантией по картинкам."
+    mode: chat
+    capabilities:
+      streaming: true
+      tools: true
+      json_schema: native
+      vision: true
+      embeddings: false
+    context_window: 1000000
+    max_output_tokens: 64000
+    targets:
+      - provider: anthropic
+        model: claude-sonnet-5
+      - provider: openai
+        model: gpt-5
+
+  # Embeddings have no fallback: Anthropic has no embeddings API, so OpenAI is
+  # the only provider. This is a property of the chosen pair of vendors, and
+  # GET /v1/models does not hide it.
+  embed-fast:
+    description: "Эмбеддинги, дёшево. Без fallback: у Anthropic нет embeddings API."
+    mode: embedding
+    capabilities:
+      streaming: false
+      tools: false
+      json_schema: unsupported
+      vision: false
+      embeddings: true
+    context_window: 8191
+    targets:
+      - provider: openai
+        model: text-embedding-3-small
+
+  embed-quality:
+    description: "Эмбеддинги, качество. Без fallback: у Anthropic нет embeddings API."
+    mode: embedding
+    capabilities:
+      streaming: false
+      tools: false
+      json_schema: unsupported
+      vision: false
+      embeddings: true
+    context_window: 8191
+    targets:
+      - provider: openai
+        model: text-embedding-3-large

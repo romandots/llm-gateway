@@ -1,0 +1,46 @@
+# Lint configuration (golangci-lint v2 schema). Kept close to the defaults plus
+# the checks that catch the mistakes this codebase can actually make: unhandled
+# errors on the wire, wrapped-error comparisons, and undocumented exported API.
+
+version: "2"
+
+run:
+  timeout: 3m
+
+linters:
+  enable:
+    - revive
+    - misspell
+    - bodyclose
+    - errorlint
+    - unconvert
+    - gocritic
+  settings:
+    errcheck:
+      # Writing to stdout is the command's output. If it fails the process is
+      # already broken in a way an error return cannot help with.
+      exclude-functions:
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - fmt.Fprint
+    revive:
+      rules:
+        - name: exported
+        - name: package-comments
+        - name: indent-error-flow
+        - name: error-strings
+    misspell:
+      locale: US
+    gocritic:
+      disabled-checks:
+        - ifElseChain
+  exclusions:
+    rules:
+      # Test helpers legitimately ignore errors on best-effort assertions.
+      - path: _test\.go
+        linters:
+          - errcheck
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
