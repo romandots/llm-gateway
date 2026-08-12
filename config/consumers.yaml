@@ -1,0 +1,33 @@
+# Consumers of the gateway. One entry per project, one key per entry.
+#
+# `aliases` is a whitelist and the second barrier against vendor model names:
+# the proxy rejects an alias that is not listed here before it ever reaches a
+# provider. Give a consumer the narrowest set it actually needs.
+#
+# Budgets and limits below are starting values. Correct them here after
+# watching real traffic — `gwctl spend --by consumer --since 7d` is the input.
+
+version: 1
+
+consumers:
+  tansultant-reactivation:
+    description: "Реактивация клиентов Tansultant"
+    owner: "roman"
+    aliases: [cheap-fast, balanced]
+    budget:
+      amount_usd: 5
+      period: daily
+    limits:
+      rpm: 60
+      tpm: 100000
+
+  my-telegram-bot:
+    description: "Телеграм-бот"
+    owner: "roman"
+    aliases: [cheap-fast]
+    budget:
+      amount_usd: 1
+      period: daily
+    limits:
+      rpm: 30
+      tpm: 50000

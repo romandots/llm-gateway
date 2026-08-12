@@ -1,0 +1,26 @@
+# Proxy-wide behavior. Rendered by `gwctl apply` into
+# deploy/litellm/config.yaml, which the proxy reads at startup.
+
+version: 1
+
+request:
+  # The contract promises a consumer never waits longer than this, internal
+  # retries and fallback included. Raising it above 30 breaks that promise and
+  # `gwctl validate` refuses it.
+  timeout_seconds: 30
+  num_retries: 2
+  retry_after_seconds: 1
+
+fallback:
+  enabled: true
+  # 400 is deliberately absent: a malformed request is deterministic, and
+  # retrying it against another provider only spends money to fail again.
+  trigger_on: [429, 500, 502, 503, 504, timeout]
+
+logging:
+  request_bodies: false      # DO NOT change without an explicit decision — the
+  response_bodies: false     # VPS would start accumulating every project's
+  metadata: true             # conversations. Metadata is enough for billing.
+
+cache:
+  enabled: false             # semantic caching is out of scope for now
